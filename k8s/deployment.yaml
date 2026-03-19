@@ -1,0 +1,119 @@
+---
+# PostgreSQL
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_DB
+              value: agentprobe
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: postgres
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+---
+# Redis
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: ["redis-server", "--save", ""]
+          ports:
+            - containerPort: 6379
+---
+# AgentProbe API
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentprobe-api
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agentprobe-api
+  template:
+    metadata:
+      labels:
+        app: agentprobe-api
+    spec:
+      containers:
+        - name: api
+          image: agentprobe-api:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: agentprobe-config
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: chroma-data
+              mountPath: /app/data/chromadb
+      volumes:
+        - name: chroma-data
+          persistentVolumeClaim:
+            claimName: chroma-pvc
+---
+# Frontend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentprobe-frontend
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agentprobe-frontend
+  template:
+    metadata:
+      labels:
+        app: agentprobe-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: agentprobe-frontend:latest
+          ports:
+            - containerPort: 80
