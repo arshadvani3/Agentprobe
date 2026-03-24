@@ -2,11 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system deps needed by some Python packages
-RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && rm -rf /var/lib/apt/lists/*
+# System deps — gcc for asyncpg, libpq for postgres driver
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip cache purge
 
 COPY . .
 
