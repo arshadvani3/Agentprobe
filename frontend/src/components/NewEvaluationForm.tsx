@@ -11,6 +11,39 @@ interface Props {
   error: string | null
 }
 
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: '#18181b',
+  border: 'none',
+  borderBottom: '1px solid #27272a',
+  padding: '8px 4px',
+  fontSize: 12,
+  color: '#FAFAFA',
+  fontFamily: "'Inter', sans-serif",
+  transition: 'border-bottom-color 0.2s',
+  outline: 'none',
+  borderRadius: 0,
+}
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: 9,
+  fontWeight: 600,
+  letterSpacing: '0.18em',
+  textTransform: 'uppercase',
+  color: '#7A6030',
+  marginBottom: 6,
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <label style={labelStyle}>{label}</label>
+      {children}
+    </div>
+  )
+}
+
 export function NewEvaluationForm({ suites, onSubmit, loading, error }: Props) {
   const [form, setForm] = useState<StartEvaluationRequest>({
     target_url: 'http://localhost:11434',
@@ -28,11 +61,10 @@ export function NewEvaluationForm({ suites, onSubmit, loading, error }: Props) {
   const [customSuites, setCustomSuites] = useState<CustomSuiteInfo[]>([])
   const [showCustom, setShowCustom] = useState(false)
 
-  // Load existing custom suites on mount
   useEffect(() => {
     api.get<CustomSuiteInfo[]>('/custom-suites')
       .then((r) => setCustomSuites(r.data))
-      .catch(() => {/* silently ignore */})
+      .catch(() => { /* silently ignore */ })
   }, [])
 
   const set = (k: keyof StartEvaluationRequest, v: unknown) =>
@@ -56,150 +88,164 @@ export function NewEvaluationForm({ suites, onSubmit, loading, error }: Props) {
   const selectedCustom = customSuites.find((s) => s.suite_id === form.custom_suite_id)
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-400 mb-1">Target URL</label>
-          <input
-            type="text"
-            value={form.target_url}
-            onChange={(e) => set('target_url', e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
-            placeholder="http://localhost:11434"
-            required
-          />
-        </div>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">Target Type</label>
+      <Field label="Target URL">
+        <input
+          type="text"
+          value={form.target_url}
+          onChange={(e) => set('target_url', e.target.value)}
+          style={inputStyle}
+          placeholder="http://localhost:11434"
+          required
+        />
+      </Field>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Field label="Target Type">
           <select
             value={form.target_type}
             onChange={(e) => set('target_type', e.target.value as TargetType)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
+            style={{ ...inputStyle, cursor: 'pointer' }}
           >
             <option value="ollama">Ollama</option>
             <option value="openai">OpenAI-compatible</option>
             <option value="simple">Simple API</option>
           </select>
-        </div>
+        </Field>
 
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">Model</label>
+        <Field label="Model">
           <input
             type="text"
             value={form.model || ''}
             onChange={(e) => set('model', e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
+            style={inputStyle}
             placeholder="llama3.1:8b"
           />
-        </div>
+        </Field>
+      </div>
 
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">Test Suite</label>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Field label="Test Suite">
           <select
             value={form.suite}
             onChange={(e) => set('suite', e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
+            style={{ ...inputStyle, cursor: 'pointer' }}
           >
             {suites.map((s) => (
               <option key={s.name} value={s.name}>
-                {s.name} ({s.test_count} tests)
+                {s.name} ({s.test_count})
               </option>
             ))}
           </select>
-        </div>
+        </Field>
 
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">Depth</label>
+        <Field label="Depth">
           <select
             value={form.depth}
             onChange={(e) => set('depth', e.target.value as EvalDepth)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
+            style={{ ...inputStyle, cursor: 'pointer' }}
           >
             <option value="quick">Quick</option>
             <option value="standard">Standard</option>
             <option value="deep">Deep</option>
           </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-gray-400 mb-1">Timeout (seconds)</label>
-          <input
-            type="number"
-            value={form.timeout}
-            onChange={(e) => set('timeout', Number(e.target.value))}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
-            min={5}
-            max={300}
-          />
-        </div>
-
-        <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-400 mb-1">Target Description</label>
-          <input
-            type="text"
-            value={form.target_description || ''}
-            onChange={(e) => set('target_description', e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
-            placeholder="A general-purpose AI assistant"
-          />
-        </div>
-
-        <div className="col-span-2">
-          <label className="block text-xs font-medium text-gray-400 mb-1">
-            API Key <span className="text-gray-600">(optional — for Groq, OpenAI, etc.)</span>
-          </label>
-          <input
-            type="password"
-            value={form.api_key || ''}
-            onChange={(e) => set('api_key', e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
-            placeholder="gsk_..."
-          />
-        </div>
+        </Field>
       </div>
 
-      {/* ── Custom test suite ─────────────────────────────────────────────── */}
-      <div className="border border-dashed border-gray-700 rounded-lg overflow-hidden">
+      <Field label="Timeout (seconds)">
+        <input
+          type="number"
+          value={form.timeout}
+          onChange={(e) => set('timeout', Number(e.target.value))}
+          style={inputStyle}
+          min={5}
+          max={300}
+        />
+      </Field>
+
+      <Field label="Target Description">
+        <input
+          type="text"
+          value={form.target_description || ''}
+          onChange={(e) => set('target_description', e.target.value)}
+          style={inputStyle}
+          placeholder="A general-purpose AI assistant"
+        />
+      </Field>
+
+      <Field label="API Key (optional — Groq, OpenAI, etc.)">
+        <input
+          type="password"
+          value={form.api_key || ''}
+          onChange={(e) => set('api_key', e.target.value)}
+          style={inputStyle}
+          placeholder="gsk_..."
+        />
+      </Field>
+
+      {/* ── Custom test suite ──────────────────────────────────────── */}
+      <div style={{
+        border: '1px dashed #92722a',
+        overflow: 'hidden',
+      }}>
         <button
           type="button"
           onClick={() => setShowCustom((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-900 transition-colors"
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 14px',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            color: '#A1A1AA',
+          }}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-200">Custom test suite</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              color: '#A1A1AA',
+            }}>
+              Custom Test Suite
+            </span>
             {selectedCustom && (
-              <span className="text-xs bg-blue-900 text-blue-300 rounded-full px-2 py-0.5">
+              <span style={{
+                fontSize: 10,
+                color: '#C9A84C',
+                letterSpacing: '0.05em',
+              }}>
                 {selectedCustom.name} · {selectedCustom.test_count} tests
               </span>
             )}
-            {!selectedCustom && (
-              <span className="text-xs text-gray-500">optional — add your own tests</span>
-            )}
           </div>
-          <span className="text-gray-500 text-xs">{showCustom ? '▲' : '▼'}</span>
+          <span style={{ fontSize: 10, color: '#7A6030' }}>{showCustom ? '▲' : '▼'}</span>
         </button>
 
         {showCustom && (
-          <div className="px-4 pb-4 space-y-4 border-t border-gray-800 pt-3">
-            <CustomSuiteUploader
-              suites={customSuites}
-              onUploaded={handleUploaded}
-              onDeleted={handleDeleted}
-            />
+          <div style={{ padding: '0 14px 14px', borderTop: '1px solid #27272a' }}>
+            <div style={{ paddingTop: 14 }}>
+              <CustomSuiteUploader
+                suites={customSuites}
+                onUploaded={handleUploaded}
+                onDeleted={handleDeleted}
+              />
+            </div>
 
-            {/* Suite selector — shown when there are uploaded suites */}
             {customSuites.length > 0 && (
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1">
-                  Run alongside evaluation
-                </label>
+              <div style={{ marginTop: 12 }}>
+                <label style={labelStyle}>Run alongside evaluation</label>
                 <select
                   value={form.custom_suite_id ?? ''}
                   onChange={(e) => set('custom_suite_id', e.target.value || null)}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-blue-500"
+                  style={{ ...inputStyle, cursor: 'pointer' }}
                 >
-                  <option value="">None — don't add custom tests</option>
+                  <option value="">None — use standard suite only</option>
                   {customSuites.map((s) => (
                     <option key={s.suite_id} value={s.suite_id}>
                       {s.name} ({s.test_count} tests)
@@ -212,22 +258,45 @@ export function NewEvaluationForm({ suites, onSubmit, loading, error }: Props) {
         )}
       </div>
 
-      {/* Demo mode toggle */}
-      <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-dashed border-gray-700 hover:border-blue-600 transition-colors">
+      {/* ── Demo mode ─────────────────────────────────────────────── */}
+      <label style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        cursor: 'pointer',
+        padding: '10px 14px',
+        border: `1px dashed ${form.demo ? '#C9A84C' : '#27272a'}`,
+        transition: 'border-color 0.2s',
+      }}>
         <input
           type="checkbox"
           checked={form.demo ?? false}
           onChange={(e) => set('demo', e.target.checked)}
-          className="w-4 h-4 accent-blue-500"
+          style={{ accentColor: '#C9A84C', width: 14, height: 14 }}
         />
         <div>
-          <div className="text-sm font-medium text-gray-200">Demo mode</div>
-          <div className="text-xs text-gray-500">Pre-canned results, completes in ~30s. No Ollama needed.</div>
+          <div style={{
+            fontSize: 11,
+            fontWeight: 500,
+            color: form.demo ? '#C9A84C' : '#FAFAFA',
+            letterSpacing: '0.05em',
+          }}>
+            Demo Mode
+          </div>
+          <div style={{ fontSize: 10, color: '#52525b', marginTop: 2 }}>
+            Pre-canned results · ~30s · No Ollama required
+          </div>
         </div>
       </label>
 
       {error && (
-        <div className="bg-red-950 border border-red-800 rounded-lg px-3 py-2 text-sm text-red-300">
+        <div style={{
+          background: '#1c0909',
+          border: '1px solid #7f1d1d',
+          padding: '10px 14px',
+          fontSize: 12,
+          color: '#fca5a5',
+        }}>
           {error}
         </div>
       )}
@@ -235,9 +304,25 @@ export function NewEvaluationForm({ suites, onSubmit, loading, error }: Props) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900 disabled:text-blue-500 text-white font-semibold rounded-lg px-4 py-2.5 text-sm transition-colors"
+        style={{
+          width: '100%',
+          background: loading ? '#7A6030' : '#C9A84C',
+          color: '#09090b',
+          border: 'none',
+          padding: '12px 16px',
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          cursor: loading ? 'not-allowed' : 'pointer',
+          borderRadius: 0,
+          transition: 'background 0.2s ease',
+          opacity: loading ? 0.7 : 1,
+        }}
+        onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#E8C96A' }}
+        onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#C9A84C' }}
       >
-        {loading ? 'Starting...' : (form.demo ? 'Start Demo' : 'Start Evaluation')}
+        {loading ? 'Starting…' : (form.demo ? 'Start Demo' : 'Start Evaluation')}
       </button>
     </form>
   )

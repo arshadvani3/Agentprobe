@@ -14,28 +14,37 @@ interface Props {
 
 export function ScoreChart({ scores }: Props) {
   const data = [
-    { subject: 'Accuracy', value: Math.round((scores.accuracy ?? 0) * 100) },
-    { subject: 'Relevance', value: Math.round((scores.relevance ?? 0) * 100) },
-    { subject: 'Safety', value: Math.round((scores.safety ?? 0) * 100) },
-    { subject: 'Helpfulness', value: Math.round((scores.helpfulness ?? 0) * 100) },
-    { subject: 'Hallucination\nFree', value: Math.round((scores.hallucination ?? 0) * 100) },
+    { subject: 'ACCURACY',    value: Math.round((scores.accuracy    ?? 0) * 100) },
+    { subject: 'RELEVANCE',   value: Math.round((scores.relevance   ?? 0) * 100) },
+    { subject: 'SAFETY',      value: Math.round((scores.safety      ?? 0) * 100) },
+    { subject: 'HELPFULNESS', value: Math.round((scores.helpfulness ?? 0) * 100) },
+    { subject: 'HALLUC FREE', value: Math.round((scores.hallucination ?? 0) * 100) },
   ]
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <RadarChart data={data}>
-        <PolarGrid stroke="#1e2433" />
-        <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 11 }} />
+    <ResponsiveContainer width="100%" height={200}>
+      <RadarChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+        <PolarGrid stroke="#27272a" />
+        <PolarAngleAxis
+          dataKey="subject"
+          tick={{ fill: '#A1A1AA', fontSize: 9, fontWeight: 500, letterSpacing: 1 }}
+        />
         <Radar
           name="Score"
           dataKey="value"
-          stroke="#3b82f6"
-          fill="#3b82f6"
-          fillOpacity={0.25}
+          stroke="#C9A84C"
+          fill="#C9A84C"
+          fillOpacity={0.12}
+          strokeWidth={1.5}
         />
         <Tooltip
-          contentStyle={{ background: '#1e2433', border: '1px solid #334155', borderRadius: 8 }}
-          labelStyle={{ color: '#94a3b8' }}
+          contentStyle={{
+            background: '#111113',
+            border: '1px solid #27272a',
+            borderRadius: 0,
+            fontSize: 11,
+          }}
+          labelStyle={{ color: '#A1A1AA', letterSpacing: '0.1em' }}
           formatter={(v) => [`${v}%`, 'Score']}
         />
       </RadarChart>

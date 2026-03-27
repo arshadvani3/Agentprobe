@@ -1,23 +1,13 @@
 import type { EvalStatus } from '../types'
 
-const STATUS_STYLES: Record<EvalStatus, string> = {
-  pending: 'bg-gray-700 text-gray-300',
-  planning: 'bg-blue-900 text-blue-300',
-  generating: 'bg-purple-900 text-purple-300',
-  executing: 'bg-yellow-900 text-yellow-300',
-  evaluating: 'bg-orange-900 text-orange-300',
-  complete: 'bg-green-900 text-green-300',
-  error: 'bg-red-900 text-red-300',
-}
-
-const STATUS_DOT: Record<EvalStatus, string> = {
-  pending: 'bg-gray-400',
-  planning: 'bg-blue-400',
-  generating: 'bg-purple-400',
-  executing: 'bg-yellow-400 animate-pulse',
-  evaluating: 'bg-orange-400 animate-pulse',
-  complete: 'bg-green-400',
-  error: 'bg-red-400',
+const STATUS_CONFIG: Record<EvalStatus, { color: string; dot: string; pulse: boolean }> = {
+  pending:    { color: '#A1A1AA', dot: '#52525b',  pulse: false },
+  planning:   { color: '#93c5fd', dot: '#3b82f6',  pulse: true  },
+  generating: { color: '#c4b5fd', dot: '#8b5cf6',  pulse: true  },
+  executing:  { color: '#fcd34d', dot: '#f59e0b',  pulse: true  },
+  evaluating: { color: '#fdba74', dot: '#f97316',  pulse: true  },
+  complete:   { color: '#86efac', dot: '#22c55e',  pulse: false },
+  error:      { color: '#fca5a5', dot: '#ef4444',  pulse: false },
 }
 
 interface Props {
@@ -25,9 +15,26 @@ interface Props {
 }
 
 export function StatusBadge({ status }: Props) {
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status]}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status]}`} />
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 10,
+      fontWeight: 600,
+      letterSpacing: '0.12em',
+      textTransform: 'uppercase',
+      color: cfg.color,
+    }}>
+      <span style={{
+        width: 5,
+        height: 5,
+        borderRadius: '50%',
+        background: cfg.dot,
+        flexShrink: 0,
+        animation: cfg.pulse ? 'pulse 2s ease-in-out infinite' : 'none',
+      }} />
       {status}
     </span>
   )

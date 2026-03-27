@@ -1,4 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
+
+:root {
+  --black:       #09090b;
+  --surface:     #111113;
+  --surface-2:   #18181b;
+  --border:      #27272a;
+  --border-gold: #92722a;
+  --gold:        #C9A84C;
+  --gold-bright: #E8C96A;
+  --gold-dim:    #7A6030;
+  --white:       #FAFAFA;
+  --gray-1:      #A1A1AA;
+  --gray-2:      #52525b;
+  --gray-3:      #27272a;
+  --success:     #22c55e;
+  --error:       #ef4444;
+  --warning:     #f59e0b;
+}
 
 * {
   box-sizing: border-box;
@@ -7,17 +26,47 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #0f1117;
-  color: #e2e8f0;
-  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--black);
+  color: var(--white);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 #root {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* React Flow custom styles */
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--black);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-2);
+}
+
+/* React Flow overrides */
 .react-flow__node {
   font-size: 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.react-flow__edge-path {
+  stroke: var(--border);
+}
+.react-flow__attribution {
+  display: none;
+}
+
+/* Gold focus outline for inputs */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-bottom-color: var(--gold) !important;
 }

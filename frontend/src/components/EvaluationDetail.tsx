@@ -12,13 +12,36 @@ interface Props {
   evaluation: EvaluationSummary
 }
 
+const Card = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+  <div style={{
+    background: '#111113',
+    border: '1px solid #27272a',
+    padding: '16px 20px',
+    ...style,
+  }}>
+    {children}
+  </div>
+)
+
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <div style={{
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.2em',
+    textTransform: 'uppercase',
+    color: '#7A6030',
+    marginBottom: 12,
+  }}>
+    ▸ {children}
+  </div>
+)
+
 export function EvaluationDetail({ evaluation }: Props) {
   const { events, connected, done } = useEventStream(
-    evaluation.status !== 'complete' && evaluation.status !== 'error' ? evaluation.eval_id : null
+    evaluation.status !== 'complete' && evaluation.status !== 'error' ? evaluation.eval_id : null,
   )
   const [report, setReport] = useState<EvaluationReport | null>(null)
 
-  // Fetch report when eval completes
   useEffect(() => {
     if (evaluation.status === 'complete' || done) {
       api.get<EvaluationReport>(`/evaluations/${evaluation.eval_id}/report`)
@@ -30,62 +53,123 @@ export function EvaluationDetail({ evaluation }: Props) {
   const scoreBreakdown = report?.summary?.score_breakdown
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        paddingBottom: 20,
+        borderBottom: '1px solid #27272a',
+      }}>
         <div>
-          <div className="font-mono text-xs text-gray-500 mb-1">{evaluation.eval_id}</div>
-          <h2 className="text-lg font-bold text-gray-100">{evaluation.suite}</h2>
-          <div className="text-sm text-gray-400">{evaluation.target_url}</div>
+          <div style={{
+            fontFamily: 'monospace',
+            fontSize: 10,
+            color: '#52525b',
+            marginBottom: 6,
+          }}>
+            {evaluation.eval_id}
+          </div>
+          <h2 style={{
+            margin: 0,
+            fontSize: 20,
+            fontWeight: 400,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: '#FAFAFA',
+          }}>
+            {evaluation.suite}
+          </h2>
+          <div style={{
+            fontSize: 11,
+            color: '#A1A1AA',
+            marginTop: 4,
+            letterSpacing: '0.05em',
+          }}>
+            {evaluation.target_url}
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <StatusBadge status={evaluation.status} />
+          </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <StatusBadge status={evaluation.status} />
-          {evaluation.overall_score != null && (
+
+        {evaluation.overall_score != null && (
+          <div>
             <ScoreGauge score={evaluation.overall_score} size="lg" />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* ── Stats row ───────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: '#27272a' }}>
         {[
-          { label: 'Total Tests', value: evaluation.total_tests },
-          { label: 'Passed', value: evaluation.passed, color: 'text-green-400' },
-          { label: 'Failed', value: evaluation.failed, color: 'text-red-400' },
+          { label: 'Total Tests', value: evaluation.total_tests,  color: '#FAFAFA' },
+          { label: 'Passed',      value: evaluation.passed,        color: '#22c55e' },
+          { label: 'Failed',      value: evaluation.failed,        color: '#ef4444' },
         ].map((s) => (
-          <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-lg p-3 text-center">
-            <div className={`text-2xl font-bold tabular-nums ${s.color || 'text-gray-100'}`}>{s.value}</div>
-            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+          <div key={s.label} style={{
+            background: '#111113',
+            padding: '16px 20px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              fontSize: 28,
+              fontWeight: 300,
+              color: s.color,
+              fontVariantNumeric: 'tabular-nums',
+              lineHeight: 1,
+              marginBottom: 6,
+            }}>
+              {s.value}
+            </div>
+            <div style={{
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              color: '#7A6030',
+            }}>
+              {s.label}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Score radar (when report available) */}
+      {/* ── Score chart ─────────────────────────────────────────────── */}
       {scoreBreakdown && Object.keys(scoreBreakdown).length > 0 && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <div className="text-sm font-semibold text-gray-300 mb-3">Score Breakdown</div>
+        <Card>
+          <SectionLabel>Score Breakdown</SectionLabel>
           <ScoreChart scores={scoreBreakdown} />
-        </div>
+        </Card>
       )}
 
-      {/* Agent graph + event feed */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3">
-          <div className="text-sm font-semibold text-gray-300 mb-3">Agent Graph</div>
+      {/* ── Graph + feed ────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#27272a' }}>
+        <div style={{ background: '#111113', padding: '16px 20px' }}>
+          <SectionLabel>Agent Graph</SectionLabel>
           <AgentGraph events={events} />
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden" style={{ height: 640 }}>
+        <div style={{ background: '#111113', overflow: 'hidden', height: 660 }}>
           <EventFeed events={events} connected={connected} />
         </div>
       </div>
 
-      {/* Narrative report */}
+      {/* ── Narrative ───────────────────────────────────────────────── */}
       {report?.narrative && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <div className="text-sm font-semibold text-gray-300 mb-3">Narrative Report</div>
-          <p className="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed">{report.narrative}</p>
-        </div>
+        <Card>
+          <SectionLabel>Report</SectionLabel>
+          <p style={{
+            margin: 0,
+            fontSize: 13,
+            color: '#A1A1AA',
+            whiteSpace: 'pre-wrap',
+            lineHeight: 1.8,
+          }}>
+            {report.narrative}
+          </p>
+        </Card>
       )}
     </div>
   )

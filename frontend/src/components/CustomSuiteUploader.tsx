@@ -65,70 +65,133 @@ export function CustomSuiteUploader({ suites, onUploaded, onDeleted }: Props) {
   }
 
   return (
-    <div className="space-y-3">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Drop zone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`
-          relative border-2 border-dashed rounded-lg px-4 py-5 text-center cursor-pointer transition-colors
-          ${dragging ? 'border-blue-500 bg-blue-950/30' : 'border-gray-700 hover:border-gray-500'}
-          ${uploading ? 'opacity-60 pointer-events-none' : ''}
-        `}
+        style={{
+          border: `1px dashed ${dragging ? '#E8C96A' : '#92722a'}`,
+          background: dragging ? '#1a1200' : '#111113',
+          padding: '20px 16px',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          opacity: uploading ? 0.6 : 1,
+          pointerEvents: uploading ? 'none' : 'auto',
+        }}
       >
         <input
           ref={fileInputRef}
           type="file"
           accept=".py"
-          className="hidden"
+          style={{ display: 'none' }}
           onChange={handleFileChange}
         />
-        <div className="text-2xl mb-1">📄</div>
-        <div className="text-sm text-gray-300 font-medium">
+        <div style={{ fontSize: 18, marginBottom: 6 }}>{ uploading ? '⏳' : '📄' }</div>
+        <div style={{ fontSize: 12, color: '#A1A1AA', fontWeight: 500 }}>
           {uploading ? 'Uploading…' : 'Drop your .py test file here, or click to browse'}
         </div>
-        <div className="text-xs text-gray-500 mt-1">Max 256 KB · Python files only</div>
+        <div style={{ fontSize: 10, color: '#52525b', marginTop: 4 }}>Max 256 KB · Python files only</div>
       </div>
 
       {/* Template download */}
       <button
         type="button"
         onClick={downloadTemplate}
-        className="w-full text-xs text-blue-400 hover:text-blue-300 underline text-left transition-colors"
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          fontSize: 11,
+          color: '#C9A84C',
+          cursor: 'pointer',
+          textAlign: 'left',
+          letterSpacing: '0.05em',
+          textDecoration: 'none',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = '#E8C96A' }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = '#C9A84C' }}
       >
         Download starter template →
       </button>
 
       {error && (
-        <div className="bg-red-950 border border-red-800 rounded-lg px-3 py-2 text-xs text-red-300">
+        <div style={{
+          background: '#1c0909',
+          border: '1px solid #7f1d1d',
+          padding: '8px 12px',
+          fontSize: 11,
+          color: '#fca5a5',
+        }}>
           {error}
         </div>
       )}
 
       {/* Uploaded suites list */}
       {suites.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-            Your test suites
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{
+            fontSize: 9,
+            fontWeight: 600,
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: '#7A6030',
+          }}>
+            Your Test Suites
           </div>
           {suites.map((s) => (
             <div
               key={s.suite_id}
-              className="flex items-start justify-between gap-2 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2"
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: 8,
+                background: '#18181b',
+                borderLeft: '3px solid #C9A84C',
+                padding: '10px 12px',
+              }}
             >
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-gray-200 truncate">{s.name}</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: '#FAFAFA',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {s.name}
+                </div>
                 {s.description && (
-                  <div className="text-xs text-gray-500 truncate">{s.description}</div>
+                  <div style={{
+                    fontSize: 10,
+                    color: '#52525b',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    marginTop: 2,
+                  }}>
+                    {s.description}
+                  </div>
                 )}
-                <div className="flex flex-wrap gap-1 mt-1">
-                  <span className="text-xs text-gray-400">{s.test_count} tests</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                  <span style={{ fontSize: 10, color: '#A1A1AA' }}>{s.test_count} tests</span>
                   {s.categories.slice(0, 4).map((c) => (
                     <span
                       key={c}
-                      className="text-xs bg-gray-800 text-gray-400 rounded px-1.5 py-0.5"
+                      style={{
+                        fontSize: 9,
+                        color: '#7A6030',
+                        background: '#18181b',
+                        border: '1px solid #27272a',
+                        padding: '1px 6px',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                      }}
                     >
                       {c}
                     </span>
@@ -138,7 +201,19 @@ export function CustomSuiteUploader({ suites, onUploaded, onDeleted }: Props) {
               <button
                 type="button"
                 onClick={() => handleDelete(s.suite_id)}
-                className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0 text-lg leading-none"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#52525b',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  lineHeight: 1,
+                  padding: 0,
+                  flexShrink: 0,
+                  transition: 'color 0.15s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#52525b' }}
                 title="Delete suite"
               >
                 ×
