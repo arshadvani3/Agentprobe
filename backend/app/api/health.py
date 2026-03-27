@@ -7,6 +7,12 @@ from ..services import database, redis_client
 router = APIRouter()
 
 
+@router.get("/ping")
+async def ping() -> dict:
+    """Instant liveness check — no DB/Redis queries. Used by Railway healthcheck."""
+    return {"status": "ok"}
+
+
 @router.get("/health")
 async def health() -> dict:
     """Liveness + dependency health check."""
