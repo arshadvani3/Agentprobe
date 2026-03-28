@@ -64,7 +64,7 @@ export function NewEvaluationForm({ suites, onSubmit, loading, error }: Props) {
   useEffect(() => {
     api.get<CustomSuiteInfo[]>('/custom-suites')
       .then((r) => setCustomSuites(r.data))
-      .catch(() => { /* silently ignore */ })
+      .catch((err) => console.error('Failed to load custom suites:', err))
   }, [])
 
   const set = (k: keyof StartEvaluationRequest, v: unknown) =>

@@ -45,5 +45,8 @@ coverage.xml
 node_modules/
 dist/
 
+# Kubernetes secrets (never commit real secrets)
+k8s/secrets.yaml
+
 # Docker
 *.pid

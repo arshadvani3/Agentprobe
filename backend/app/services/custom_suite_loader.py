@@ -3,14 +3,21 @@ Custom test suite loader — parses and validates user-uploaded Python test file
 
 Security model
 --------------
-We run AST analysis before exec() to block dangerous imports and builtins.
-Allowed imports are an explicit allowlist (not a blocklist) to be safe.
-The exec namespace is also stripped of dangerous builtins at runtime.
+Two-layer defence:
+1. AST pre-validation — blocks dangerous imports and dunder attribute access before
+   any code is compiled (fast, catches obvious attacks).
+2. RestrictedPython execution — compiles to bytecode that inserts _getattr_, _getiter_,
+   _getitem_, _write_ guards at every attribute access and assignment. Even if the AST
+   check is bypassed, the runtime guards prevent sandbox escapes.
 """
 import ast
+import builtins as _builtins_module
 import logging
 import uuid
 from typing import Any
+
+from RestrictedPython import compile_restricted, safe_globals
+from RestrictedPython.Guards import safe_builtins, guarded_iter_unpack_sequence
 
 logger = logging.getLogger(__name__)
 
@@ -77,17 +84,48 @@ def _validate_ast(source: str) -> None:
                 )
 
 
+def _make_restricted_import():
+    """Return a __import__ that only allows modules in _ALLOWED_IMPORTS."""
+    def _restricted_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        pkg = name.split(".")[0]
+        if pkg not in _ALLOWED_IMPORTS:
+            raise ImportError(
+                f"Import of '{name}' is not allowed in test files. "
+                f"Allowed imports: {sorted(_ALLOWED_IMPORTS)}"
+            )
+        return _builtins_module.__import__(name, *args, **kwargs)
+    return _restricted_import
+
+
 def _safe_exec(source: str) -> dict[str, Any]:
-    """Execute the source in a restricted namespace and return it."""
-    # Strip dangerous builtins from the __builtins__ available to the file
-    import builtins
-    safe_builtins = {
-        k: v for k, v in vars(builtins).items()
-        if k not in _BLOCKED_BUILTINS
+    """
+    Execute the source inside a RestrictedPython sandbox and return the local namespace.
+
+    RestrictedPython rewrites the bytecode to insert _getattr_, _getiter_, _getitem_,
+    and _write_ guards on every attribute access, iteration, and assignment — preventing
+    sandbox escape via subclass traversal or attribute manipulation even if the AST
+    pre-check is somehow bypassed.
+    """
+    try:
+        byte_code = compile_restricted(source, "<custom_suite>", "exec")
+    except SyntaxError as exc:
+        raise CustomSuiteValidationError(f"Syntax error in test file: {exc}") from exc
+
+    restricted_globals: dict[str, Any] = {
+        **safe_globals,
+        "__builtins__": {
+            **safe_builtins,
+            "__import__": _make_restricted_import(),
+        },
+        "_getiter_": iter,
+        "_iter_unpack_sequence_": guarded_iter_unpack_sequence,
     }
-    namespace: dict[str, Any] = {"__builtins__": safe_builtins}
-    exec(compile(source, "<custom_suite>", "exec"), namespace)  # noqa: S102
-    return namespace
+    local_ns: dict[str, Any] = {}
+    try:
+        exec(byte_code, restricted_globals, local_ns)  # noqa: S102
+    except (ImportError, NameError, TypeError) as exc:
+        raise CustomSuiteValidationError(f"Error executing test file: {exc}") from exc
+    return local_ns
 
 
 def _normalise_test(raw: Any, idx: int) -> dict[str, Any]:

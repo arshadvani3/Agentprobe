@@ -55,8 +55,8 @@ export function CustomSuiteUploader({ suites, onUploaded, onDeleted }: Props) {
     try {
       await api.delete(`/custom-suites/${suiteId}`)
       onDeleted(suiteId)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Failed to delete suite:', err)
     }
   }
 

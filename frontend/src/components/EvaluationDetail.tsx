@@ -46,7 +46,7 @@ export function EvaluationDetail({ evaluation }: Props) {
     if (evaluation.status === 'complete' || done) {
       api.get<EvaluationReport>(`/evaluations/${evaluation.eval_id}/report`)
         .then(({ data }) => setReport(data))
-        .catch(() => setReport(null))
+        .catch((err) => { console.error('Failed to fetch report:', err); setReport(null) })
     }
   }, [evaluation.eval_id, evaluation.status, done])
 

@@ -298,4 +298,7 @@ async def delete_custom_suite(suite_id: str) -> bool:
         result = await conn.execute(
             "DELETE FROM custom_suites WHERE suite_id = $1", suite_id
         )
-    return result.split()[-1] != "0"
+    try:
+        return int(result.split()[-1]) > 0
+    except (IndexError, ValueError):
+        return False

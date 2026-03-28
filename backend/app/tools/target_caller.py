@@ -1,6 +1,8 @@
-import time
+import ipaddress
 import logging
+import time
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 from langchain_core.tools import tool
@@ -8,6 +10,59 @@ from langchain_core.tools import tool
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 30.0
+
+# Private/reserved IPv4 and IPv6 ranges — block SSRF to internal services
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("127.0.0.0/8"),    # loopback
+    ipaddress.ip_network("10.0.0.0/8"),     # RFC 1918
+    ipaddress.ip_network("172.16.0.0/12"),  # RFC 1918
+    ipaddress.ip_network("192.168.0.0/16"), # RFC 1918
+    ipaddress.ip_network("169.254.0.0/16"), # link-local / AWS metadata
+    ipaddress.ip_network("100.64.0.0/10"),  # CGNAT
+    ipaddress.ip_network("::1/128"),        # IPv6 loopback
+    ipaddress.ip_network("fc00::/7"),       # IPv6 ULA
+    ipaddress.ip_network("fe80::/10"),      # IPv6 link-local
+]
+
+
+def _validate_target_url(url: str) -> None:
+    """
+    SSRF guard — reject non-HTTP(S) schemes and direct private/reserved IP literals.
+
+    Note: hostname-based URLs are not DNS-resolved here (would block event loop).
+    This stops the most common SSRF vectors (direct IP literals) while keeping
+    the API usable. A full DNS-rebinding guard would require an async resolver.
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception as exc:
+        raise ValueError(f"Invalid URL: {exc}") from exc
+
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"Only http and https target URLs are allowed, got: {parsed.scheme!r}"
+        )
+
+    hostname = (parsed.hostname or "").strip("[]")  # strip IPv6 brackets
+    if not hostname:
+        raise ValueError("Target URL must include a hostname")
+
+    # If hostname is a bare IP literal, reject if it falls in a private range
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_loopback or ip.is_link_local or ip.is_private or ip.is_reserved or ip.is_multicast:
+            raise ValueError(
+                f"Requests to private/reserved IP addresses are not allowed: {hostname}"
+            )
+        for net in _BLOCKED_NETWORKS:
+            if ip in net:
+                raise ValueError(
+                    f"Requests to private/reserved IP addresses are not allowed: {hostname}"
+                )
+    except ValueError as exc:
+        if "not allowed" in str(exc):
+            raise
+        # Not a bare IP — it's a hostname, which passes (DNS-rebinding out of scope here)
 
 
 def _build_result(
@@ -156,6 +211,11 @@ async def call_target(
     api_key: str = "",
 ) -> dict[str, Any]:
     """Dispatch to the appropriate caller based on target type."""
+    try:
+        _validate_target_url(target_url)
+    except ValueError as exc:
+        return _build_result(error=str(exc))
+
     if target_type == "ollama":
         return await _call_ollama(target_url, model, message, timeout)
     elif target_type == "openai":

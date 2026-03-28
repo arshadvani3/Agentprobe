@@ -1,8 +1,10 @@
 import json
 import logging
+import secrets
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
+from ..core.settings import settings
 from ..services.evaluation_store import get_evaluation
 from ..services.redis_client import DONE_MSG, get_client
 
@@ -13,15 +15,27 @@ _PING_INTERVAL_TICKS = 15  # ticks × 1s timeout = 15s between pings
 
 
 @router.websocket("/stream/{eval_id}")
-async def stream_evaluation(websocket: WebSocket, eval_id: str) -> None:
+async def stream_evaluation(
+    websocket: WebSocket,
+    eval_id: str,
+    token: str = Query(default=""),
+) -> None:
     """
     WebSocket endpoint that streams real-time agent events for an evaluation.
 
+    - If AGENTPROBE_API_KEY is set, a matching `token` query param is required.
     - If eval is already complete: replays stored events from Postgres then closes.
     - If eval is in-progress: subscribes to Redis pub/sub channel and forwards
       events in real-time until the DONE signal is received.
     """
     await websocket.accept()
+
+    # Auth — only enforced when AGENTPROBE_API_KEY is configured
+    if settings.agentprobe_api_key:
+        provided = token or ""
+        if not provided or not secrets.compare_digest(provided, settings.agentprobe_api_key):
+            await websocket.close(code=4003)
+            return
 
     record = await get_evaluation(eval_id)
     if not record:

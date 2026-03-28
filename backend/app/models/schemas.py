@@ -30,7 +30,12 @@ class EvalStatus(str, Enum):
 # ── Request ──────────────────────────────────────────────────────────────────
 
 class StartEvaluationRequest(BaseModel):
-    target_url: str = Field(..., description="URL of the agent to test")
+    target_url: str = Field(
+        ...,
+        description="URL of the agent to test",
+        min_length=10,
+        max_length=2048,
+    )
     target_type: TargetType = Field(TargetType.ollama, description="API format of the target")
     model: str = Field("", description="Model name (required for ollama targets)")
     suite: str = Field("general_chatbot", description="Test suite name")

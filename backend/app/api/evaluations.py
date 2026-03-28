@@ -1,7 +1,9 @@
 from pathlib import Path
 
 import yaml
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from ..core.auth import verify_api_key
 from ..models.schemas import (
@@ -20,6 +22,7 @@ from ..services.evaluation_store import (
 from ..tools.target_caller import _call_ollama, _call_openai_compatible, _call_simple_endpoint
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(verify_api_key)])
+limiter = Limiter(key_func=get_remote_address)
 
 _SUITES_DIR = Path(__file__).parent.parent.parent / "test_suites"
 
@@ -42,33 +45,35 @@ def _record_to_summary(record: dict) -> EvaluationSummary:
 
 
 @router.post("/evaluations", response_model=EvaluationSummary, status_code=202)
+@limiter.limit("10/minute")
 async def start_evaluation(
-    request: StartEvaluationRequest,
+    request: Request,
+    body: StartEvaluationRequest,
     background_tasks: BackgroundTasks,
 ) -> EvaluationSummary:
     """Start a new evaluation. Returns immediately; eval runs in background."""
-    req = request.model_dump()
+    req = body.model_dump()
 
     # Demo mode: skip pre-flight and LLM calls entirely
-    if request.demo:
+    if body.demo:
         eval_id = await create_evaluation(req)
         background_tasks.add_task(run_demo_evaluation, eval_id, req)
         record = await get_evaluation(eval_id)
         return _record_to_summary(record)
 
     # Real mode: connectivity check first
-    if request.target_type == "ollama":
-        result = await _call_ollama(request.target_url, request.model, "ping", 10.0)
-    elif request.target_type == "openai":
+    if body.target_type == "ollama":
+        result = await _call_ollama(body.target_url, body.model, "ping", 10.0)
+    elif body.target_type == "openai":
         result = await _call_openai_compatible(
-            request.target_url,
+            body.target_url,
             [{"role": "user", "content": "ping"}],
-            request.model or "gpt-3.5-turbo",
+            body.model or "gpt-3.5-turbo",
             10.0,
-            api_key=request.api_key,
+            api_key=body.api_key,
         )
     else:
-        result = await _call_simple_endpoint(request.target_url, "ping", 10.0)
+        result = await _call_simple_endpoint(body.target_url, "ping", 10.0)
 
     if result["error"]:
         raise HTTPException(
