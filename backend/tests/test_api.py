@@ -22,7 +22,7 @@ os.environ.setdefault("CHROMADB_PATH", "/tmp/agentprobe_test_chroma")
 from backend.app.main import app  # noqa: E402
 
 
-@pytest_asyncio.fixture(scope="module", loop_scope="module")
+@pytest_asyncio.fixture
 async def client():
     async with app.router.lifespan_context(app):
         transport = ASGITransport(app=app)
