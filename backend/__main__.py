@@ -156,17 +156,14 @@ async def run(
 
     print("  Running evaluation... (this may take several minutes)\n")
 
-    last_status = ""
     final_state = None
 
     async for chunk in graph.astream(initial_state, stream_mode="updates"):
         for node_name, updates in chunk.items():
-            status = updates.get("status", "")
             messages = updates.get("agent_messages", [])
             for msg in messages:
                 evt_type = msg.get("type", "")
                 data = msg.get("data", {})
-                agent = msg.get("agent", node_name)
 
                 if evt_type == "plan_created":
                     print(f"  [supervisor]    Test plan created: {len(data.get('test_plan', []))} categories")

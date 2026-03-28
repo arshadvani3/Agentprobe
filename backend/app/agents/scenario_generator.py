@@ -5,7 +5,6 @@ from pathlib import Path
 
 import yaml
 
-from ..services.llm import invoke_llm
 from ..services.chroma_store import add_tests as chroma_add, is_duplicate, seed_from_tests
 from ..tools.test_generators import (
     generate_happy_path_tests,

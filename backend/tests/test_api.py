@@ -7,11 +7,9 @@ Uses httpx.AsyncClient to hit the live FastAPI app.
 Run:
     pytest backend/tests/ -v
 """
-import asyncio
 import os
 import pytest
 import pytest_asyncio
-import httpx
 from httpx import AsyncClient, ASGITransport
 
 

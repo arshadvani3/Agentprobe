@@ -1,10 +1,6 @@
 import base64
-import re
-import time
 import logging
 from typing import Any
-
-import httpx
 
 logger = logging.getLogger(__name__)
 
