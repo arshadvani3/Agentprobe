@@ -61,7 +61,7 @@ export function CustomSuiteUploader({ suites, onUploaded, onDeleted }: Props) {
   }
 
   const downloadTemplate = () => {
-    window.open('/api/v1/custom-suites/template', '_blank')
+    window.open(`${api.defaults.baseURL}/custom-suites/template`, '_blank')
   }
 
   return (
