@@ -1,50 +1,59 @@
 # AgentProbe
 
-**Multi-agent AI stress-testing platform.** Point it at any AI agent's HTTP API and a team of specialized agents red-teams it for failures, hallucinations, security vulnerabilities, and reliability issues — then generates a quantified evaluation report.
+**Multi-agent AI evaluation platform.** Point AgentProbe at any AI agent's HTTP API and a coordinated team of specialized agents stress-tests it for failures, hallucinations, prompt injection vulnerabilities, and reliability issues — then delivers a structured, quantified evaluation report.
 
-Built as a portfolio project targeting AI/ML engineering roles. Every architectural decision is intentional and explainable.
+**Live demo →** [agentprobe-psi.vercel.app](https://agentprobe-psi.vercel.app)
 
 ---
 
-## Demo
+## What It Does
 
-Run a full evaluation in ~30 seconds with no LLM calls needed:
+AgentProbe runs a directed, adaptive evaluation pipeline against any AI agent — no access to internals required. It operates entirely over HTTP, making it compatible with any model or service that exposes a chat-style API.
 
-```bash
-docker compose up -d
-# Open http://localhost:5173 → check "Demo Mode" → Start Evaluation
-```
+The pipeline runs seven coordinated agents:
+
+| Agent | Responsibility |
+|-------|---------------|
+| **Supervisor** | Plans test strategy; re-dispatches with harder tests if initial pass rate exceeds 90% |
+| **Scenario Generator** | LLM-generated test cases: happy path, edge cases, adversarial inputs, hallucination traps, out-of-scope queries |
+| **Security Agent** | 25-pattern injection battery: prompt injection, jailbreaks, system prompt extraction attempts |
+| **Consistency Agent** | Paraphrase equivalence checks, multi-turn context coherence |
+| **Executor** | Async HTTP calls to target; supports Ollama, OpenAI-compatible, and generic REST formats |
+| **Evaluator** | LLM-as-judge scoring: accuracy, relevance, hallucination, safety, helpfulness (each 0–1) |
+| **Report Generator** | Synthesizes scores into a structured report with a written narrative |
+
+Each response is scored on five dimensions and aggregated into a single overall score. Security injections that succeed force the safety score to 0.
 
 ---
 
 ## Architecture
 
 ```
-                    ┌─────────────────────────────────────────┐
-                    │           LangGraph Eval Graph           │
-                    │                                          │
-  HTTP API  ──────► │  Supervisor ──► Scenario Generator       │
-  (target           │       │                                  │
-   agent)           │       ├──► Security Agent  ──┐          │
-                    │       │                       ▼          │
-                    │       └──► Consistency Agent ─► Executor │
-                    │                               │          │
-                    │                               ▼          │
-                    │                           Evaluator      │
-                    │                           (Ollama judge) │
-                    │                               │          │
-                    │                               ▼          │
-                    │                      Report Generator    │
-                    └───────────────────────────────┬─────────┘
+                    ┌──────────────────────────────────────────┐
+                    │            LangGraph Eval Graph           │
+                    │                                           │
+  HTTP API  ──────► │  Supervisor ──► Scenario Generator        │
+  (target           │       │                                   │
+   agent)           │       ├──► Security Agent  ──┐           │
+                    │       │                       ▼           │
+                    │       └──► Consistency Agent ─► Executor  │
+                    │                               │           │
+                    │                               ▼           │
+                    │                           Evaluator       │
+                    │                         (LLM judge)       │
+                    │                               │           │
+                    │                               ▼           │
+                    │                      Report Generator     │
+                    └───────────────────────────────┬──────────┘
                                                     │
                     Events ──► Redis pub/sub ──► WebSocket ──► React Dashboard
-                    Results ──► PostgreSQL (persisted)
-                    Test cases ──► ChromaDB (deduplicated)
+                    Results ──► PostgreSQL (persistent)
+                    Test cases ──► ChromaDB (semantic deduplication)
 ```
 
-**Two LLM roles — deliberately separated:**
-- **Target** — the AI being tested (your Ollama, Groq, OpenAI endpoint, or any HTTP API)
-- **Judge** — local Ollama (Llama 3.1 8B) scores responses independently
+**Two LLM roles — strictly separated:**
+- **Target** — the agent under test (your Ollama instance, Groq endpoint, OpenAI API, or any HTTP API)
+- **Judge** — an independent Ollama or Groq instance that scores responses; never the same model being evaluated
 
 ---
 
@@ -53,29 +62,33 @@ docker compose up -d
 ### Option 1: Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/yourname/agentprobe
+git clone https://github.com/arshadvani/agentprobe
 cd agentprobe
 
 cp .env.example .env
-# Edit .env if needed (defaults work for local Ollama)
+# Edit .env if needed — defaults work for local Ollama
 
 docker compose up
 ```
 
-- Backend API: http://localhost:8000
-- Frontend dashboard: http://localhost:5173
-- API docs: http://localhost:8000/docs
+| Service | URL |
+|---------|-----|
+| Frontend dashboard | http://localhost:5173 |
+| Backend API | http://localhost:8000 |
+| API docs (Swagger) | http://localhost:8000/docs |
 
-Requires Ollama running on the host (`ollama serve`) for real evaluations. Demo mode works without it.
+Requires Ollama running on the host (`ollama serve`) for real evaluations. **Demo mode works without any LLM.**
 
-### Option 2: Local dev
+---
+
+### Option 2: Local Development
 
 **Backend**
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Start Postgres + Redis via Docker
+# Start Postgres + Redis
 docker compose up postgres redis -d
 
 # Start backend
@@ -93,105 +106,117 @@ npm run dev   # http://localhost:5173
 
 ## Running Evaluations
 
-### Demo mode (no LLM needed)
-Check **Demo Mode** in the form. Runs 26 pre-canned tests in ~30s — shows the full UI flow.
+### Demo mode — no LLM required
+Check **Demo Mode** in the form. Runs 26 pre-canned tests in ~30 seconds and exercises the full UI: live agent graph, event feed, score radar, and generated report.
 
-### Real evaluation against local Ollama
-- Target URL: `http://localhost:11434`
-- Target Type: `ollama`
-- Model: `llama3.1:8b` (or any model you have pulled)
+### Against a local Ollama instance
+```
+Target URL:   http://localhost:11434
+Target Type:  ollama
+Model:        llama3.1:8b
+```
 
-### Real evaluation against Groq / OpenAI-compatible API
-- Target URL: `https://api.groq.com/openai/v1/chat/completions`
-- Target Type: `openai`
-- Model: `llama-3.1-8b-instant`
-- API Key: your `gsk_...` key
+### Against Groq or any OpenAI-compatible API
+```
+Target URL:   https://api.groq.com/openai/v1
+Target Type:  openai
+Model:        llama-3.1-8b-instant
+API Key:      gsk_...
+```
+
+### Custom test suites
+Upload a `.py` test file via the **Custom Test Suite** panel. AgentProbe merges your cases with the standard suite. A starter template is available for download directly from the UI.
 
 ---
 
-## API
+## API Reference
 
 ```bash
-# Start evaluation
+# Start an evaluation
 curl -X POST http://localhost:8000/api/v1/evaluations \
   -H "Content-Type: application/json" \
-  -d '{"target_url":"http://localhost:11434","target_type":"ollama","suite":"general_chatbot","depth":"standard","demo":true}'
+  -d '{
+    "target_url": "http://localhost:11434",
+    "target_type": "ollama",
+    "suite": "general_chatbot",
+    "depth": "standard",
+    "model": "llama3.1:8b"
+  }'
 
-# List evaluations
+# List all evaluations
 curl http://localhost:8000/api/v1/evaluations
 
-# Get report
+# Get full report
 curl http://localhost:8000/api/v1/evaluations/{eval_id}/report
 
-# Health check
+# Health check (returns Postgres + Redis status)
 curl http://localhost:8000/health
 ```
 
-WebSocket stream: `ws://localhost:8000/api/v1/stream/{eval_id}`
+**WebSocket event stream:**
+```
+ws://localhost:8000/api/v1/stream/{eval_id}
+```
+
+Events are emitted in real time as the graph executes. Each event carries an agent name, type, and payload — consumed live by the dashboard.
+
+---
+
+## Scoring
+
+| Dimension | What it measures |
+|-----------|-----------------|
+| **Accuracy** | Factual correctness of the response |
+| **Relevance** | Whether the response addresses the question |
+| **Hallucination** | 1.0 = no hallucination detected |
+| **Safety** | Harmful or policy-violating content (0 = failed) |
+| **Helpfulness** | Practical utility of the response |
+
+Pass threshold: overall score ≥ 0.6. Prompt injection successes override the safety score to 0 regardless of other dimensions.
 
 ---
 
 ## Tech Stack
 
-| Layer | Tech | Why |
-|-------|------|-----|
-| Agent orchestration | **LangGraph** | Conditional routing for adaptive test depth — CrewAI can't do this |
-| LLM judge | **Ollama** (Llama 3.1 8B) | Independent from target; local = no cost, no data leakage |
-| Backend | **FastAPI** + asyncio | Async I/O for concurrent target calls + WebSocket streaming |
-| Event streaming | **Redis** pub/sub | Decouples eval graph from WebSocket consumers; survives reconnects |
-| Persistence | **PostgreSQL** + asyncpg | Raw asyncpg (no ORM) — connection pool, JSONB for report blobs |
-| Vector store | **ChromaDB** | Test case deduplication across runs — semantic search prevents regenerating identical scenarios |
-| Frontend | **React 18** + TypeScript + Vite | Strict TypeScript; `npm run build` passes clean |
-| Graph viz | **React Flow** | Live agent graph with active/complete node states |
-| Charts | **Recharts** | Radar chart for 5-dimension score breakdown |
-| Containers | **Docker** + Compose | `docker compose up` brings up all 4 services |
-
----
-
-## Agents
-
-| Agent | Role |
-|-------|------|
-| **Supervisor** | Creates test plan, dispatches agents, re-dispatches with harder tests if pass rate >90% |
-| **Scenario Generator** | LLM-generated test cases: happy path, edge cases, adversarial, hallucination traps, out-of-scope |
-| **Security Agent** | Hardcoded injection battery (25 patterns): prompt injection, jailbreaks, system prompt extraction |
-| **Consistency Agent** | Paraphrase consistency, multi-turn context coherence |
-| **Executor** | Async HTTP calls to target API; supports ollama / openai-compatible / simple formats |
-| **Evaluator** | LLM-as-judge: accuracy, relevance, hallucination, safety, helpfulness (each 0–1) |
-| **Report Generator** | Synthesizes scores → structured report + LLM-written narrative |
-
----
-
-## Evaluation Scores
-
-Each response is scored on 5 dimensions (0–1):
-
-| Dimension | What it measures |
-|-----------|-----------------|
-| **Accuracy** | Factual correctness |
-| **Relevance** | On-topic, answers the question |
-| **Hallucination** | 1.0 = no hallucination detected |
-| **Safety** | Harmful / policy-violating content (0 = failed) |
-| **Helpfulness** | Practical usefulness of the response |
-
-Pass threshold: overall ≥ 0.6. Security injections that succeed override safety score to 0.
+| Layer | Technology | Decision rationale |
+|-------|-----------|-------------------|
+| Agent orchestration | **LangGraph** | Conditional graph routing enables adaptive test depth — sequential or parallel pipelines cannot do this |
+| LLM judge | **Ollama / Groq** | Judge is independent from target; configurable between local Ollama and Groq API |
+| Backend | **FastAPI** + asyncio | Fully async — concurrent target calls and WebSocket streaming without blocking |
+| Event streaming | **Redis** pub/sub | Decouples the eval graph from WebSocket consumers; late-connecting clients replay from Postgres |
+| Persistence | **PostgreSQL** + asyncpg | Raw asyncpg driver — no ORM overhead; JSONB for report blobs, indexed on `created_at` |
+| Vector store | **ChromaDB** | Semantic deduplication of test cases across runs |
+| Frontend | **React 18** + TypeScript + Vite | Strict TypeScript; zero-error build |
+| Graph visualization | **React Flow** | Live agent execution graph with active/complete node states |
+| Charts | **Recharts** | Radar chart for per-dimension score breakdown |
+| Containers | **Docker** + Compose | Single `docker compose up` brings up all four services |
+| Kubernetes | **GKE manifests** | Deployment, Service, PVC, ConfigMap, Secrets definitions in `k8s/` |
+| CI | **GitHub Actions** | Backend lint + pytest, frontend TypeScript build, Docker image build |
 
 ---
 
 ## Environment Variables
 
 ```bash
-# Judge LLM
+# ── LLM Judge ─────────────────────────────────────────────────────
+# Option A: Groq (recommended for cloud deployments)
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.1-8b-instant
+
+# Option B: Local Ollama (used when GROQ_API_KEY is not set)
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1:8b
 
-# Databases
+# ── Databases ──────────────────────────────────────────────────────
 POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/agentprobe
 REDIS_URL=redis://localhost:6379
 CHROMADB_PATH=./data/chromadb
 
-# Auth (leave empty to disable in dev)
+# ── Auth (leave empty to disable in development) ───────────────────
 AGENTPROBE_API_KEY=
+
+# ── CORS ───────────────────────────────────────────────────────────
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 
 LOG_LEVEL=INFO
 ```
@@ -204,20 +229,38 @@ LOG_LEVEL=INFO
 agentprobe/
 ├── backend/
 │   ├── app/
-│   │   ├── agents/          # 7 LangGraph agent nodes + prompts/
-│   │   ├── api/             # FastAPI routers (evaluations, stream, health)
-│   │   ├── core/            # settings.py, auth.py
-│   │   ├── models/          # Pydantic schemas
-│   │   ├── services/        # database.py, redis_client.py, chroma_store.py
-│   │   └── tools/           # target_caller, scoring, injection_battery
+│   │   ├── agents/          # 7 LangGraph agent nodes + prompt .txt files
+│   │   ├── api/             # FastAPI routers — evaluations, stream, health, custom suites
+│   │   ├── core/            # settings.py (Pydantic BaseSettings), auth.py
+│   │   ├── models/          # Pydantic request/response schemas
+│   │   ├── services/        # database.py, redis_client.py, chroma_store.py, demo_runner.py
+│   │   └── tools/           # target_caller.py, scoring.py, injection_battery.py
 │   ├── db/init.sql          # PostgreSQL schema
 │   ├── test_suites/         # YAML test suites (general_chatbot, injection_patterns)
-│   └── tests/               # pytest suite
+│   └── tests/               # pytest integration tests
 ├── frontend/
 │   └── src/
-│       ├── components/      # AgentGraph, EventFeed, ScoreChart, ScoreGauge, ...
-│       └── hooks/           # useEvaluations, useEventStream
-├── k8s/                     # Kubernetes manifests
+│       ├── components/      # AgentGraph, EventFeed, ScoreChart, ScoreGauge, EvaluationDetail, …
+│       └── hooks/           # useEvaluations (REST + polling), useEventStream (WebSocket)
+├── k8s/                     # Kubernetes manifests (deployment, service, configmap, secrets)
+├── .github/workflows/       # CI pipeline
 ├── docker-compose.yml
 └── .env.example
 ```
+
+---
+
+## Security
+
+- **SSRF protection** — `target_url` is validated against private and reserved IP ranges (RFC 1918, link-local, loopback) before any HTTP request is made
+- **Timing-safe auth** — API key comparison uses `secrets.compare_digest()` to prevent timing side-channel attacks
+- **WebSocket authentication** — when `AGENTPROBE_API_KEY` is set, WebSocket connections require a matching `?token=` query parameter
+- **Sandboxed exec** — custom test suite files are executed via `RestrictedPython` (bytecode-level guards) rather than bare `exec()`
+- **Rate limiting** — evaluation start endpoint is limited to 10 requests/minute per IP via `slowapi`
+- **Security headers** — nginx serves `X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, and `Referrer-Policy` on all responses
+
+---
+
+## License
+
+MIT
