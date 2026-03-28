@@ -31,6 +31,9 @@ async def _call_openai_compatible(
     timeout: float = DEFAULT_TIMEOUT,
     api_key: str = "",
 ) -> dict[str, Any]:
+    # Accept bare base URL — append /chat/completions if not already present
+    if not url.rstrip("/").endswith("/chat/completions"):
+        url = url.rstrip("/") + "/chat/completions"
     payload = {"model": model, "messages": messages}
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     start = time.monotonic()
