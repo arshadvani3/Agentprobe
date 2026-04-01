@@ -7,27 +7,37 @@ export function useEvaluations() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchEvaluations = useCallback(async () => {
-    try {
-      const { data } = await api.get<EvaluationSummary[]>('/evaluations')
-      setEvaluations(data)
-    } catch (err) {
-      console.error('Failed to fetch evaluations:', err)
-    }
-  }, [])
-
+  // Poll only in-progress evals started this session — never load from DB on mount
   useEffect(() => {
-    fetchEvaluations()
-    const interval = setInterval(fetchEvaluations, 3000)
+    const running = evaluations.filter(
+      (e) => e.status !== 'complete' && e.status !== 'error'
+    )
+    if (running.length === 0) return
+
+    const interval = setInterval(async () => {
+      try {
+        const updates = await Promise.all(
+          running.map((e) =>
+            api.get<EvaluationSummary>(`/evaluations/${e.eval_id}`).then((r) => r.data)
+          )
+        )
+        setEvaluations((prev) =>
+          prev.map((e) => updates.find((u) => u.eval_id === e.eval_id) ?? e)
+        )
+      } catch (err) {
+        console.error('Failed to poll evaluations:', err)
+      }
+    }, 3000)
+
     return () => clearInterval(interval)
-  }, [fetchEvaluations])
+  }, [evaluations])
 
   const startEvaluation = useCallback(async (request: StartEvaluationRequest) => {
     setLoading(true)
     setError(null)
     try {
       const { data } = await api.post<EvaluationSummary>('/evaluations', request)
-      await fetchEvaluations()
+      setEvaluations((prev) => [data, ...prev])
       return data
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to start evaluation'
@@ -36,9 +46,9 @@ export function useEvaluations() {
     } finally {
       setLoading(false)
     }
-  }, [fetchEvaluations])
+  }, [])
 
-  return { evaluations, loading, error, startEvaluation, refetch: fetchEvaluations }
+  return { evaluations, loading, error, startEvaluation }
 }
 
 export function useTestSuites() {
